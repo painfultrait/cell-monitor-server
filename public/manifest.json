@@ -9,9 +9,9 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/assets/CompanyLogo.png",
+      "src": "/assets/appicon.ico",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/x-icons"
     }
   ]
 }
