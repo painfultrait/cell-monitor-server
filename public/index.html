@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#2c3e50">
+  <title>Cell Monitor</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/assets/appicon.ico">
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f5;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: #2c3e50;
+      color: white;
+      padding: 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .header-logo img {
+      height: 60px;
+    }
+
+    .content {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .stats {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .stat-card {
+      flex: 1;
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .stat-label {
+      color: #7f8c8d;
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    .stat-card.free .stat-value {
+      color: #27ae60;
+    }
+
+    .stat-card.occupied .stat-value {
+      color: #e74c3c;
+    }
+
+    .grid-container {
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+    }
+
+    .cell {
+      aspect-ratio: 1.5;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+
+    .cell:active {
+      transform: scale(0.95);
+    }
+
+    .cell.free {
+      background: #2ecc71;
+      color: white;
+    }
+
+    .cell.occupied {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .cell.unavailable {
+      background: #f39c12;
+      color: white;
+    }
+
+    .cell-number {
+      font-size: 24px;
+      margin-bottom: 2px;
+    }
+
+    .cell-status {
+      font-size: 8px;
+      opacity: 0.9;
+    }
+
+    .loading, .error {
+      text-align: center;
+      padding: 40px 20px;
+      white-space: nowrap;
+    }
+
+    .loading {
+      color: #95a5a6;
+    }
+
+    .error {
+      color: #e74c3c;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-logo">
+      <img src="/assets/CompanyLogo.png" alt="Violanta">
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="stats" id="stats" style="display: none;">
+      <div class="stat-card">
+        <div class="stat-label">Всего</div>
+        <div class="stat-value" id="totalCells">0</div>
+      </div>
+      <div class="stat-card free">
+        <div class="stat-label">Свободно</div>
+        <div class="stat-value" id="freeCells">0</div>
+      </div>
+      <div class="stat-card occupied">
+        <div class="stat-label">Занято</div>
+        <div class="stat-value" id="occupiedCells">0</div>
+      </div>
+    </div>
+
+    <div class="grid-container">
+      <div class="grid" id="grid">
+        <div class="loading">Подключение к серверу...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.origin;
+    const statsDiv = document.getElementById('stats');
+    const totalCellsSpan = document.getElementById('totalCells');
+    const freeCellsSpan = document.getElementById('freeCells');
+    const occupiedCellsSpan = document.getElementById('occupiedCells');
+    const grid = document.getElementById('grid');
+
+    async function loadCells() {
+      try {
+        const response = await fetch(`${API_URL}/api/cells`);
+        const data = await response.json();
+
+        if (data.success) {
+          statsDiv.style.display = 'flex';
+          renderCells(data.data);
+          updateStats(data.data);
+        } else {
+          throw new Error('Failed to fetch cells');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        grid.innerHTML = '<div class="error">Ошибка подключения к серверу</div>';
+      }
+    }
+
+    function updateStats(cells) {
+      const total = cells.length;
+      const free = cells.filter(c => c.status === 180).length;
+      const occupied = cells.filter(c => c.status === 200).length;
+
+      totalCellsSpan.textContent = total;
+      freeCellsSpan.textContent = free;
+      occupiedCellsSpan.textContent = occupied;
+    }
+
+    function renderCells(cells) {
+      grid.innerHTML = '';
+
+      cells.forEach(cell => {
+        const cellDiv = document.createElement('div');
+        
+        let cellClass = 'cell ';
+        let statusText = '';
+
+        if (cell.status === 180) {
+          cellClass += 'free';
+          statusText = 'СВОБОДНА';
+        } else if (cell.status === 200) {
+          cellClass += 'occupied';
+          statusText = 'ЗАНЯТА';
+        } else if (cell.status === 210) {
+        cellClass += 'unavailable';
+        statusText = 'ЗАБЛОКИРОВАНА';
+        } else if (cell.status === 190) {
+          cellClass += 'unavailable';
+          statusText = 'НЕДОСТУПНА';
+        }
+
+        cellDiv.className = cellClass;
+        cellDiv.innerHTML = `
+          <div class="cell-number">${cell.number}</div>
+          <div class="cell-status">${statusText}</div>
+        `;
+
+        grid.appendChild(cellDiv);
+      });
+    }
+
+    loadCells();
+    setInterval(loadCells, 2000);
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+</body>
+</html>

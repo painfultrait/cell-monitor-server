@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+  <title>Cell Monitor Server</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      color: #1a1a1a;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      background: #2c3e50;
+      padding: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+    }
+
+    .header-tabs {
+      display: flex;
+      gap: 0;
+    }
+
+    .header-tab {
+      padding: 18px 30px;
+      cursor: pointer;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.7);
+      transition: all 0.3s;
+      border-bottom: 3px solid transparent;
+    }
+
+    .header-tab:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .header-tab.active {
+      color: white;
+      background: rgba(255, 255, 255, 0.1);
+      border-bottom: 3px solid #3498db;
+    }
+
+    .header-logo {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .header-logo img {
+      height: 60px;
+    }
+
+    .header-status {
+      padding: 0 24px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status-badge.stopped {
+      background: rgba(231, 76, 60, 0.2);
+      color: #e74c3c;
+      border: 1px solid rgba(231, 76, 60, 0.4);
+    }
+
+    .status-badge.running {
+      background: rgba(39, 174, 96, 0.2);
+      color: #27ae60;
+      border: 1px solid rgba(39, 174, 96, 0.4);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-badge.stopped .status-dot {
+      background: #e74c3c;
+    }
+
+    .status-badge.running .status-dot {
+      background: #27ae60;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Main Container */
+    .main-container {
+      flex: 1;
+      display: flex;
+      gap: 16px;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .left-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .right-panel {
+      width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .tab-content {
+      display: none;
+      padding: 24px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #24292e;
+    }
+
+    .form-group input[type="text"],
+    .form-group input[type="password"],
+    .form-group input[type="number"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #d1d5da;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #0366d6;
+      box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .checkbox-group label {
+      margin: 0;
+      cursor: pointer;
+      font-size: 13px;
+      color: #586069;
+      font-weight: normal;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: #0366d6;
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #0256c2;
+    }
+
+    .btn-danger {
+      background: #d73a49;
+      color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: #cb2431;
+    }
+
+    .logs-container {
+      background: #24292e;
+      border-radius: 4px;
+      padding: 16px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 12px;
+      color: #e1e4e8;
+      line-height: 1.6;
+      height: 550px;
+    }
+
+    .log-entry {
+      margin-bottom: 4px;
+    }
+
+    .log-entry::before {
+      content: '> ';
+      color: #6a737d;
+    }
+
+    .instructions {
+      background: white;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 20px;
+    }
+
+    .instructions-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #24292e;
+      margin-bottom: 12px;
+    }
+
+    .instructions ol {
+      margin-left: 18px;
+      font-size: 13px;
+      color: #586069;
+      line-height: 1.8;
+    }
+
+    .instructions li {
+      margin-bottom: 6px;
+    }
+
+    .qr-section {
+      background: white;
+      border: 1px solid #e1e4e8;
+      border-radius: 6px;
+      padding: 20px;
+      display: none;
+    }
+
+    .qr-section.active {
+      display: block;
+    }
+
+    .qr-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #24292e;
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .qr-code-container {
+      text-align: center;
+      padding: 16px;
+      background: #f6f8fa;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+
+    #qrCode {
+      max-width: 100%;
+      border-radius: 4px;
+    }
+
+    .qr-url {
+      padding: 10px;
+      background: #f6f8fa;
+      border: 1px solid #e1e4e8;
+      border-radius: 4px;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+      word-break: break-all;
+      color: #0366d6;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header">
+    <!-- Tabs Left -->
+    <div class="header-tabs">
+      <div class="header-tab active" data-tab="settings">Настройки</div>
+      <div class="header-tab" data-tab="logs">Логи</div>
+    </div>
+
+    <!-- Logo Center -->
+    <div class="header-logo">
+      <img src="../assets/CompanyLogo.png" alt="Violanta">
+    </div>
+
+    <!-- Status Right -->
+    <div class="header-status">
+      <div class="status-badge stopped" id="statusBadge">
+        <div class="status-dot"></div>
+        <span id="statusText">Отключено</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="main-container">
+    <!-- Left Panel -->
+    <div class="left-panel">
+      <div class="card">
+        <!-- Settings Tab -->
+        <div class="tab-content active" id="settings-tab">
+          <div class="form-group">
+            <label for="host">Хост базы данных</label>
+            <input type="text" id="host" placeholder="localhost\SQLEXPRESS">
+          </div>
+
+          <div class="form-group">
+            <label for="database">Имя базы данных</label>
+            <input type="text" id="database" placeholder="Postomat">
+          </div>
+
+          <div class="form-group">
+            <label for="user">Пользователь</label>
+            <input type="text" id="user" placeholder="cellmonitor">
+          </div>
+
+          <div class="form-group">
+            <label for="password">Пароль</label>
+            <input type="password" id="password" placeholder="••••••••">
+          </div>
+
+          <div class="form-group">
+            <label for="port">Порт</label>
+            <input type="number" id="port" placeholder="3000" value="3000" min="1024" max="65535">
+          </div>
+
+          <div class="checkbox-group">
+            <input type="checkbox" id="saveSettings">
+            <label for="saveSettings">Запомнить эти настройки</label>
+          </div>
+
+          <div class="checkbox-group">
+            <input type="checkbox" id="autoStart">
+            <label for="autoStart">Запускать сервер автоматически при старте приложения</label>
+          </div>
+
+          <div class="button-group">
+            <button class="btn-primary" id="startBtn">Запустить сервер</button>
+            <button class="btn-danger" id="stopBtn" disabled>Остановить сервер</button>
+          </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div class="tab-content" id="logs-tab">
+          <div class="logs-container" id="logsContainer">
+            <div class="log-entry">Ожидание запуска сервера...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="right-panel">
+      <div class="qr-section" id="qrSection">
+        <div class="qr-title">Быстрое подключение</div>
+        <div class="qr-code-container">
+          <img id="qrCode" alt="QR Code">
+        </div>
+        <div class="qr-url" id="qrUrl"></div>
+      </div>
+
+      <div class="instructions">
+        <div class="instructions-title">Инструкция по подключению</div>
+        <ol>
+          <li>Убедитесь что мобильное устройство в той же Wi-Fi сети</li>
+          <li>Запустите сервер используя настройки</li>
+          <li>Отсканируйте QR код или введите адрес в браузере</li>
+          <li>Добавьте на главный экран для быстрого доступа</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const logsContainer = document.getElementById('logsContainer');
+    const qrSection = document.getElementById('qrSection');
+    const qrCode = document.getElementById('qrCode');
+    const qrUrl = document.getElementById('qrUrl');
+
+    const hostInput = document.getElementById('host');
+    const databaseInput = document.getElementById('database');
+    const userInput = document.getElementById('user');
+    const passwordInput = document.getElementById('password');
+    const portInput = document.getElementById('port');
+    const saveSettingsCheckbox = document.getElementById('saveSettings');
+    const autoStartCheckbox = document.getElementById('autoStart');
+
+    const headerTabs = document.querySelectorAll('.header-tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    headerTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.getAttribute('data-tab');
+        headerTabs.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`${tabName}-tab`).classList.add('active');
+      });
+    });
+
+    function loadSettings() {
+      const saved = localStorage.getItem('serverSettings');
+      const saveEnabled = localStorage.getItem('saveEnabled') === 'true';
+      const autoStart = localStorage.getItem('autoStart') === 'true';
+      
+      saveSettingsCheckbox.checked = saveEnabled;
+      autoStartCheckbox.checked = autoStart;
+      
+      if (saved && saveEnabled) {
+        try {
+          const settings = JSON.parse(saved);
+          hostInput.value = settings.host || '';
+          databaseInput.value = settings.database || '';
+          userInput.value = settings.user || '';
+          passwordInput.value = settings.password || '';
+          portInput.value = settings.port || '3000';
+        } catch (e) {
+          console.error('Ошибка загрузки настроек:', e);
+        }
+      }
+    }
+
+    function saveSettings() {
+      if (!saveSettingsCheckbox.checked) return;
+      
+      const settings = {
+        host: hostInput.value,
+        database: databaseInput.value,
+        user: userInput.value,
+        password: passwordInput.value,
+        port: portInput.value,
+      };
+      
+      localStorage.setItem('serverSettings', JSON.stringify(settings));
+      localStorage.setItem('saveEnabled', 'true');
+    }
+
+    saveSettingsCheckbox.addEventListener('change', () => {
+      localStorage.setItem('saveEnabled', saveSettingsCheckbox.checked.toString());
+      if (saveSettingsCheckbox.checked) {
+        saveSettings();
+      } else {
+        localStorage.removeItem('serverSettings');
+      }
+    });
+
+    autoStartCheckbox.addEventListener('change', () => {
+      localStorage.setItem('autoStart', autoStartCheckbox.checked.toString());
+    });
+
+    function addLog(message) {
+      const logEntry = document.createElement('div');
+      logEntry.className = 'log-entry';
+      logEntry.textContent = message;
+      logsContainer.appendChild(logEntry);
+      logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+
+    async function startServer() {
+      const dbConfig = {
+        server: hostInput.value,
+        database: databaseInput.value,
+        user: userInput.value,
+        password: passwordInput.value,
+        port: parseInt(portInput.value) || 3000,
+        options: {
+          encrypt: false,
+          trustServerCertificate: true,
+        },
+      };
+
+      startBtn.disabled = true;
+      startBtn.textContent = 'Запуск...';
+
+      const result = await ipcRenderer.invoke('start-server', dbConfig);
+
+      if (result.success) {
+        statusBadge.className = 'status-badge running';
+        statusText.textContent = 'Подключено';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        startBtn.textContent = 'Запустить сервер';
+
+        qrCode.src = result.qrCode;
+        qrUrl.textContent = result.url;
+        qrSection.classList.add('active');
+
+        saveSettings();
+        addLog('Сервер успешно запущен');
+      } else {
+        startBtn.disabled = false;
+        startBtn.textContent = 'Запустить сервер';
+        addLog(`ОШИБКА: ${result.error}`);
+        alert(`Не удалось запустить сервер:\n${result.error}`);
+      }
+    }
+
+    startBtn.addEventListener('click', startServer);
+
+    stopBtn.addEventListener('click', async () => {
+      stopBtn.disabled = true;
+      stopBtn.textContent = 'Остановка...';
+
+      const result = await ipcRenderer.invoke('stop-server');
+
+      if (result.success) {
+        statusBadge.className = 'status-badge stopped';
+        statusText.textContent = 'Отключено';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        stopBtn.textContent = 'Остановить сервер';
+
+        qrSection.classList.remove('active');
+        addLog('Сервер остановлен');
+      } else {
+        stopBtn.disabled = false;
+        stopBtn.textContent = 'Остановить сервер';
+        addLog(`ОШИБКА: ${result.error}`);
+      }
+    });
+
+    ipcRenderer.on('server-log', (event, message) => {
+      addLog(message);
+    });
+
+    loadSettings();
+
+    if (autoStartCheckbox.checked) {
+      setTimeout(() => {
+        addLog('Автоматический запуск сервера...');
+        startServer();
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
